@@ -6,10 +6,9 @@ services:
       context: .
       target: development
     ports:
-      - '3000:3000'
-    environment:
-      - NODE_ENV=development
-      - MONGODB_URI=mongodb://mongodb:27017/education-platform
+      - '${DOCKER_APP_PORT:-3000}:3000'
+    env_file:
+      - .env
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -21,7 +20,7 @@ services:
   mongodb:
     image: mongo:6.0
     ports:
-      - '27017:27017'
+      - '${DOCKER_MONGO_PORT:-27017}:27017'
     environment:
       - MONGO_INITDB_DATABASE=education-platform
     volumes:
@@ -32,7 +31,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      - '${DOCKER_REDIS_PORT:-6379}:6379'
     networks:
       - education-network
 
