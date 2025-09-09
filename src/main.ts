@@ -185,9 +185,45 @@ async function bootstrap() {
   if (configService.get('NODE_ENV') !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Education Platform API')
-      .setDescription('Education Platform API for Students and Teachers')
+      .setDescription(
+        `Education Platform API for Students and Teachers
+
+## Authentication
+
+Most endpoints require authentication using JWT Bearer tokens.
+
+### How to authenticate:
+1. Register a new user: POST /api/v1/auth/register
+2. Verify your email: GET /api/v1/auth/verify-email?token=YOUR_TOKEN
+3. Login: POST /api/v1/auth/login
+4. Use the returned access_token in the Authorization header: \`Bearer YOUR_TOKEN\`
+
+### Authorization Levels:
+- **Public**: No authentication required
+- **User**: Requires valid JWT token
+- **Admin**: Requires valid JWT token + admin role
+- **Teacher/Admin**: Requires valid JWT token + teacher or admin role
+
+### Getting Access Token:
+1. Login via \`/api/v1/auth/login\`
+2. Copy the \`access_token\` from the response
+3. Click the 🔒 Authorize button below
+4. Enter: \`Bearer YOUR_ACCESS_TOKEN\`
+        `,
+      )
       .setVersion('1.0')
-      .addBearerAuth()
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'Authorization',
+          description: 'Enter your JWT token (without Bearer prefix)',
+          in: 'header',
+        },
+        'access-token',
+      )
+      .addSecurityRequirements('access-token')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

@@ -8,12 +8,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { GetUserByEmailUseCase } from '@application/use-cases/user.use-cases';
 import { RegisterUserUseCase } from '@application/use-cases/register-user.use-case';
@@ -55,9 +50,10 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'User registration' })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Registration successful. Please check your email to verify your account.',
+  @ApiResponse({
+    status: 201,
+    description:
+      'Registration successful. Please check your email to verify your account.',
     schema: {
       type: 'object',
       properties: {
@@ -76,9 +72,13 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email address' })
-  @ApiQuery({ name: 'token', description: 'Email verification token', required: true })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiQuery({
+    name: 'token',
+    description: 'Email verification token',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
     description: 'Email verified successfully',
     schema: {
       type: 'object',
@@ -89,7 +89,9 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async verifyEmail(@Query('token') token: string): Promise<{ message: string }> {
+  async verifyEmail(
+    @Query('token') token: string,
+  ): Promise<{ message: string }> {
     return await this.verifyEmailUseCase.execute(token);
   }
 
@@ -97,8 +99,8 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Login successful',
     schema: {
       type: 'object',
@@ -122,7 +124,7 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
     // Step 1: Find user by email
     const user = await this.getUserByEmailUseCase.execute(loginDto.email);
-    
+
     // Step 2: Verify password
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
@@ -165,7 +167,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refresh(@Body() body: { refresh_token: string }): Promise<{ access_token: string }> {
+  async refresh(
+    @Body() body: { refresh_token: string },
+  ): Promise<{ access_token: string }> {
     // This would implement refresh token logic
     // For now, just return a placeholder
     throw new Error('Refresh token functionality not implemented yet');

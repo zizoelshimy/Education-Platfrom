@@ -51,7 +51,6 @@ import { CurrentUser } from '@presentation/decorators/current-user.decorator';
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UsePipes(new ValidationPipe())
-@ApiBearerAuth()
 export class UserController {
   constructor(
     private readonly createUserUseCase: CreateUserUseCase,
@@ -84,12 +83,39 @@ export class UserController {
 
   @Get()
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get all users' })
+  @ApiOperation({
+    summary: 'Get all users',
+    description:
+      'Retrieve all users in the system. Requires ADMIN role and valid JWT token.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Users retrieved successfully',
     type: [UserResponseDto],
   })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin role required',
+    schema: {
+      example: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
   @ApiQuery({ name: 'role', required: false, enum: UserRole })
   async getAllUsers(
     @Query('role') role?: UserRole,
@@ -105,12 +131,28 @@ export class UserController {
   }
 
   @Get('profile')
-  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiOperation({
+    summary: 'Get current user profile',
+    description:
+      'Retrieve the profile of the currently authenticated user. Requires valid JWT token.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Current user profile retrieved successfully',
     type: UserResponseDto,
   })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
   async getCurrentUser(
     @CurrentUser() currentUser: any,
   ): Promise<UserResponseDto> {
@@ -120,7 +162,11 @@ export class UserController {
 
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
-  @ApiOperation({ summary: 'Get user by ID' })
+  @ApiOperation({
+    summary: 'Get user by ID',
+    description:
+      'Retrieve a specific user by their ID. Requires ADMIN or TEACHER role and valid JWT token.',
+  })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
     status: 200,
@@ -128,6 +174,29 @@ export class UserController {
     type: UserResponseDto,
   })
   @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin or Teacher role required',
+    schema: {
+      example: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
   async getUserById(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<UserResponseDto> {
@@ -136,7 +205,11 @@ export class UserController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update user by ID' })
+  @ApiOperation({
+    summary: 'Update user by ID',
+    description:
+      'Update a user by their ID. Users can only update their own profile unless they are an admin. Requires valid JWT token.',
+  })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
     status: 200,
@@ -145,6 +218,29 @@ export class UserController {
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Bad request - Validation error' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Can only update own profile (unless admin)',
+    schema: {
+      example: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'You can only update your own profile',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
   async updateUser(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -160,12 +256,39 @@ export class UserController {
   }
 
   @Put(':id/password')
-  @ApiOperation({ summary: 'Change user password' })
+  @ApiOperation({
+    summary: 'Change user password',
+    description:
+      'Change user password. Users can only change their own password unless they are an admin. Requires valid JWT token.',
+  })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Bad request - Validation error' })
   @ApiResponse({ status: 401, description: 'Invalid current password' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Can only change own password (unless admin)',
+    schema: {
+      example: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'You can only change your own password',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
   async changePassword(
     @Param('id', ParseObjectIdPipe) id: string,
     @Body() changePasswordDto: ChangePasswordDto,
@@ -182,10 +305,37 @@ export class UserController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Delete user by ID' })
+  @ApiOperation({
+    summary: 'Delete user by ID',
+    description:
+      'Delete a user by their ID. Requires ADMIN role and valid JWT token.',
+  })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin role required',
+    schema: {
+      example: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
   async deleteUser(
     @Param('id', ParseObjectIdPipe) id: string,
   ): Promise<{ message: string }> {
