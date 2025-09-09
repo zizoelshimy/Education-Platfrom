@@ -1,9 +1,21 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { IUserRepository } from '@domain/repositories/user.repository.interface';
 import { User } from '@domain/entities/user.entity';
-import { CreateUserDto, UpdateUserDto } from '@application/dto/user.dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  ChangePasswordDto,
+} from '@application/dto/user.dto';
 import { UserRole, UserStatus } from '@domain/value-objects/user.enums';
 import { USER_REPOSITORY_TOKEN } from '@shared/constants/injection.tokens';
+import {
+  UserNotFoundException,
+  UserAlreadyExistsException,
+  InvalidPasswordException,
+  ValidationException,
+} from '@shared/exceptions/domain.exceptions';
+import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class CreateUserUseCase {
@@ -18,14 +30,22 @@ export class CreateUserUseCase {
       createUserDto.email,
     );
     if (existingUser) {
-      throw new Error('User with this email already exists');
+      throw new UserAlreadyExistsException(createUserDto.email);
     }
 
-    // For now, we'll use a simple password hash (in real implementation, use bcrypt)
-    const hashedPassword = `hashed_${createUserDto.password}`;
+    // Validate password strength (additional validation beyond DTO)
+    if (!this.isPasswordSecure(createUserDto.password)) {
+      throw new ValidationException(
+        'password',
+        'Password does not meet security requirements',
+      );
+    }
 
-    // Generate a simple ID (in real implementation, use uuid)
-    const id = Math.random().toString(36).substr(2, 9);
+    // Hash password using bcrypt
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
+
+    // Generate a unique ID
+    const id = crypto.randomUUID();
 
     // Create user entity
     const user = new User(
@@ -41,7 +61,26 @@ export class CreateUserUseCase {
       createUserDto.bio,
     );
 
-    return await this.userRepository.create(user);
+    try {
+      return await this.userRepository.create(user);
+    } catch (error) {
+      throw new Error(`Failed to create user: ${error.message}`);
+    }
+  }
+
+  private isPasswordSecure(password: string): boolean {
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    return (
+      hasUppercase &&
+      hasLowercase &&
+      hasNumbers &&
+      hasSpecialChar &&
+      password.length >= 8
+    );
   }
 }
 
@@ -52,8 +91,17 @@ export class GetUserByIdUseCase {
     private readonly userRepository: IUserRepository,
   ) {}
 
-  async execute(id: string): Promise<User | null> {
-    return await this.userRepository.findById(id);
+  async execute(id: string): Promise<User> {
+    if (!id) {
+      throw new ValidationException('id', 'User ID is required');
+    }
+
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new UserNotFoundException(id);
+    }
+
+    return user;
   }
 }
 
@@ -64,8 +112,17 @@ export class GetUserByEmailUseCase {
     private readonly userRepository: IUserRepository,
   ) {}
 
-  async execute(email: string): Promise<User | null> {
-    return await this.userRepository.findByEmail(email);
+  async execute(email: string): Promise<User> {
+    if (!email) {
+      throw new ValidationException('email', 'Email is required');
+    }
+
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      throw new UserNotFoundException(`user with email ${email}`);
+    }
+
+    return user;
   }
 }
 
@@ -88,13 +145,14 @@ export class UpdateUserUseCase {
     private readonly userRepository: IUserRepository,
   ) {}
 
-  async execute(
-    id: string,
-    updateUserDto: UpdateUserDto,
-  ): Promise<User | null> {
+  async execute(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+    if (!id) {
+      throw new ValidationException('id', 'User ID is required');
+    }
+
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
-      throw new Error('User not found');
+      throw new UserNotFoundException(id);
     }
 
     const updateData: Partial<User> = {
@@ -102,7 +160,15 @@ export class UpdateUserUseCase {
       updatedAt: new Date(),
     };
 
-    return await this.userRepository.update(id, updateData);
+    try {
+      const updatedUser = await this.userRepository.update(id, updateData);
+      if (!updatedUser) {
+        throw new Error('Failed to update user');
+      }
+      return updatedUser;
+    } catch (error) {
+      throw new Error(`Failed to update user: ${error.message}`);
+    }
   }
 }
 
@@ -114,12 +180,20 @@ export class DeleteUserUseCase {
   ) {}
 
   async execute(id: string): Promise<boolean> {
-    const existingUser = await this.userRepository.findById(id);
-    if (!existingUser) {
-      throw new Error('User not found');
+    if (!id) {
+      throw new ValidationException('id', 'User ID is required');
     }
 
-    return await this.userRepository.delete(id);
+    const existingUser = await this.userRepository.findById(id);
+    if (!existingUser) {
+      throw new UserNotFoundException(id);
+    }
+
+    try {
+      return await this.userRepository.delete(id);
+    } catch (error) {
+      throw new Error(`Failed to delete user: ${error.message}`);
+    }
   }
 }
 
@@ -131,6 +205,71 @@ export class GetUsersByRoleUseCase {
   ) {}
 
   async execute(role: UserRole): Promise<User[]> {
-    return await this.userRepository.findByRole(role);
+    if (!role) {
+      throw new ValidationException('role', 'User role is required');
+    }
+
+    try {
+      return await this.userRepository.findByRole(role);
+    } catch (error) {
+      throw new Error(`Failed to get users by role: ${error.message}`);
+    }
+  }
+}
+
+@Injectable()
+export class ChangePasswordUseCase {
+  constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
+    private readonly userRepository: IUserRepository,
+  ) {}
+
+  async execute(
+    id: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<boolean> {
+    if (!id) {
+      throw new ValidationException('id', 'User ID is required');
+    }
+
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new UserNotFoundException(id);
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.hashedPassword,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new InvalidPasswordException();
+    }
+
+    // Ensure new password is different from current
+    const isSamePassword = await bcrypt.compare(
+      changePasswordDto.newPassword,
+      user.hashedPassword,
+    );
+
+    if (isSamePassword) {
+      throw new ValidationException(
+        'newPassword',
+        'New password must be different from current password',
+      );
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      12,
+    );
+
+    try {
+      return await this.userRepository.updatePassword(id, hashedNewPassword);
+    } catch (error) {
+      throw new Error(`Failed to change password: ${error.message}`);
+    }
   }
 }

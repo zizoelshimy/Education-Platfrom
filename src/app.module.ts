@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { CourseModule } from './modules/course/course.module';
 import { HealthModule } from './modules/health/health.module';
+import { GlobalExceptionFilter } from './presentation/filters/global-exception.filter';
+import { ResponseInterceptor } from './presentation/interceptors/response.interceptor';
 
 @Module({
   imports: [
@@ -44,9 +46,20 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
   ],
   providers: [
+    // Global Guards
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Global Filters
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    // Global Interceptors
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
     },
   ],
 })
