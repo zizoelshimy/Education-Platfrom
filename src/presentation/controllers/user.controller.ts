@@ -204,6 +204,50 @@ export class UserController {
     return this.mapToResponseDto(user);
   }
 
+  @Get('email/:email')
+  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @ApiOperation({
+    summary: 'Get user by email',
+    description:
+      'Retrieve a specific user by their email address. Requires ADMIN or TEACHER role and valid JWT token.',
+  })
+  @ApiParam({ name: 'email', description: 'User email address' })
+  @ApiResponse({
+    status: 200,
+    description: 'User retrieved successfully',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Access token is required',
+    schema: {
+      example: {
+        statusCode: 401,
+        error: 'UnauthorizedException',
+        message: 'Access token is required',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin or Teacher role required',
+    schema: {
+      example: {
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+      },
+    },
+  })
+  @ApiBearerAuth('access-token')
+  async getUserByEmail(
+    @Param('email') email: string,
+  ): Promise<UserResponseDto> {
+    const user = await this.getUserByEmailUseCase.execute(email);
+    return this.mapToResponseDto(user);
+  }
+
   @Put(':id')
   @ApiOperation({
     summary: 'Update user by ID',
