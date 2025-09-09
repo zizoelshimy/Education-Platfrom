@@ -15,6 +15,7 @@ build/
 
 # IDE
 .vscode/
+SENSITIVE_DETAILS.md
 .idea/
 *.swp
 *.swo
@@ -39,3 +40,6 @@ uploads/
 
 # Cache
 .cache/
+
+# Local testing documentation
+POSTMAN_USER_TESTING_GUIDE.md

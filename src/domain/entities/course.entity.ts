@@ -1,14 +1,8 @@
-export enum CourseStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-  ARCHIVED = 'archived',
-}
-
-export enum CourseLevel {
-  BEGINNER = 'beginner',
-  INTERMEDIATE = 'intermediate',
-  ADVANCED = 'advanced',
-}
+import {
+  CourseStatus,
+  CourseLevel,
+  CourseType,
+} from '@domain/value-objects/course.enums';
 
 export class Course {
   constructor(
@@ -17,13 +11,26 @@ export class Course {
     public readonly description: string,
     public readonly instructorId: string,
     public readonly level: CourseLevel,
+    public readonly type: CourseType = CourseType.ONLINE,
     public readonly status: CourseStatus = CourseStatus.DRAFT,
     public readonly price: number = 0,
     public readonly duration: number = 0, // in minutes
     public readonly maxStudents: number = 0, // 0 means unlimited
     public readonly tags: string[] = [],
+    public readonly category?: string,
+    public readonly thumbnail?: string,
+    public readonly previewVideo?: string,
+    public readonly syllabus?: string[],
+    public readonly requirements?: string[],
+    public readonly learningObjectives?: string[],
+    public readonly language: string = 'English',
+    public readonly certificateEnabled: boolean = false,
+    public readonly enrollmentCount: number = 0,
+    public readonly rating: number = 0,
+    public readonly ratingCount: number = 0,
     public readonly createdAt: Date = new Date(),
-    public updatedAt: Date = new Date(),
+    public readonly updatedAt: Date = new Date(),
+    public readonly publishedAt?: Date,
   ) {}
 
   isPublished(): boolean {
@@ -38,6 +45,10 @@ export class Course {
     return this.status === CourseStatus.ARCHIVED;
   }
 
+  isSuspended(): boolean {
+    return this.status === CourseStatus.SUSPENDED;
+  }
+
   isFree(): boolean {
     return this.price === 0;
   }
@@ -46,7 +57,7 @@ export class Course {
     return this.maxStudents > 0;
   }
 
-  canEnroll(currentStudentsCount: number): boolean {
+  canEnroll(currentStudentsCount: number = this.enrollmentCount): boolean {
     return (
       this.isPublished() &&
       (!this.hasStudentLimit() || currentStudentsCount < this.maxStudents)
@@ -55,5 +66,13 @@ export class Course {
 
   getDurationInHours(): number {
     return Math.round((this.duration / 60) * 100) / 100;
+  }
+
+  getAverageRating(): number {
+    return this.ratingCount > 0 ? this.rating / this.ratingCount : 0;
+  }
+
+  isEligibleForCertificate(): boolean {
+    return this.certificateEnabled && this.isPublished();
   }
 }

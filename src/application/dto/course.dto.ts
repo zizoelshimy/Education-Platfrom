@@ -8,7 +8,7 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CourseLevel, CourseStatus } from '@domain/entities/course.entity';
+import { CourseLevel, CourseStatus } from '@domain/value-objects/course.enums';
 
 export class CreateCourseDto {
   @ApiProperty({ example: 'Introduction to TypeScript' })
