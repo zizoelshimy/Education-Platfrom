@@ -20,7 +20,7 @@ import { RegisterUserUseCase } from '@application/use-cases/register-user.use-ca
 import { VerifyEmailUseCase } from '@application/use-cases/verify-email.use-case';
 import { LoginDto, RegisterDto } from '@application/dto/auth.dto';
 import { Public } from '@presentation/decorators/public.decorator';
-import { InvalidPasswordException } from '@shared/exceptions/domain.exceptions';
+import { InvalidPasswordException, EmailNotVerifiedException } from '@shared/exceptions/domain.exceptions';
 import * as bcrypt from 'bcryptjs';
 
 export interface LoginResponse {
@@ -118,7 +118,8 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials or email not verified' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponse> {
     // Step 1: Find user by email
     const user = await this.getUserByEmailUseCase.execute(loginDto.email);
@@ -133,7 +134,12 @@ export class AuthController {
       throw new InvalidPasswordException();
     }
 
-    // Step 3: Generate JWT payload
+    // Step 3: Check if email is verified
+    if (!user.emailVerified) {
+      throw new EmailNotVerifiedException();
+    }
+
+    // Step 4: Generate JWT payload
     const payload = {
       sub: user.id,
       email: user.email,
@@ -142,10 +148,10 @@ export class AuthController {
       lastName: user.lastName,
     };
 
-    // Step 4: Sign JWT token
+    // Step 5: Sign JWT token
     const accessToken = await this.jwtService.signAsync(payload);
 
-    // Step 5: Return response
+    // Step 6: Return response
     return {
       access_token: accessToken,
       user: {

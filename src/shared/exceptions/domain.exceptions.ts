@@ -26,6 +26,13 @@ export class InvalidPasswordException extends DomainException {
   }
 }
 
+export class EmailNotVerifiedException extends DomainException {
+  constructor() {
+    super('Please verify your email before logging in');
+    this.name = 'EmailNotVerifiedException';
+  }
+}
+
 export class UnauthorizedException extends DomainException {
   constructor(message: string = 'Unauthorized access') {
     super(message);
